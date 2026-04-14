@@ -1,121 +1,98 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect, createContext, useContext } from 'react'
+import { authAPI, setTokens, clearTokens, getToken } from './services/api'
+import Sidebar from './components/Sidebar'
+import Navbar from './components/Navbar'
+import Dashboard from './pages/Dashboard'
+import Suppliers from './pages/Suppliers'
+import Items from './pages/Items'
+import Categories from './pages/Categories'
+import Requisitions from './pages/Requisitions'
+import PurchaseOrders from './pages/PurchaseOrders'
+import GRNs from './pages/GRNs'
+import Invoices from './pages/Invoices'
+import Login from './pages/Login'
 
-function App() {
-  const [count, setCount] = useState(0)
+// ─── Auth Context ──────────────────────────────────────────────────────────
+export const AuthContext = createContext(null)
+export const useAuth = () => useContext(AuthContext)
+
+// ─── App Shell ─────────────────────────────────────────────────────────────
+export default function App() {
+  const [user, setUser]               = useState(null)
+  const [page, setPage]               = useState('dashboard')
+  const [sidebarCollapsed, setCollapsed] = useState(false)
+  const [loading, setLoading]         = useState(true)
+
+  useEffect(() => {
+    const token = getToken()
+    if (token) {
+      // Decode basic info from token (or just mark as logged in)
+      const stored = localStorage.getItem('user_info')
+      if (stored) setUser(JSON.parse(stored))
+      else setUser({ username: 'User' })
+    }
+    setLoading(false)
+  }, [])
+
+  const login = async (username, password) => {
+    const data = await authAPI.login(username, password)
+    setTokens(data.access, data.refresh)
+    const userInfo = { username }
+    localStorage.setItem('user_info', JSON.stringify(userInfo))
+    setUser(userInfo)
+  }
+
+  const logout = () => {
+    clearTokens()
+    localStorage.removeItem('user_info')
+    setUser(null)
+    setPage('dashboard')
+  }
+
+  if (loading) return (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
+      <div className="spinner" />
+    </div>
+  )
+
+  if (!user) return (
+    <AuthContext.Provider value={{ user, login, logout }}>
+      <Login />
+    </AuthContext.Provider>
+  )
+
+  const pages = {
+    dashboard:      <Dashboard navigate={setPage} />,
+    suppliers:      <Suppliers />,
+    items:          <Items />,
+    categories:     <Categories />,
+    requisitions:   <Requisitions />,
+    'purchase-orders': <PurchaseOrders />,
+    grns:           <GRNs />,
+    invoices:       <Invoices />,
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <AuthContext.Provider value={{ user, login, logout }}>
+      <div className="app-layout">
+        <Sidebar
+          currentPage={page}
+          onNavigate={setPage}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setCollapsed(!sidebarCollapsed)}
+        />
+        <div className={`main-area${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
+          <Navbar
+            onToggleSidebar={() => setCollapsed(!sidebarCollapsed)}
+            currentPage={page}
+            user={user}
+            onLogout={logout}
+          />
+          <div className="page-content">
+            {pages[page] || <Dashboard navigate={setPage} />}
+          </div>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      </div>
+    </AuthContext.Provider>
   )
 }
-
-export default App
